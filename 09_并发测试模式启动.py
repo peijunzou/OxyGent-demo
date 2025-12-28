@@ -2,6 +2,7 @@ import os
 from oxygent import MAS, oxy
 from pydantic import Field
 
+from point_util import PortManager
 
 jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")
 
@@ -34,6 +35,9 @@ oxy_space = [
 ]
 
 async def main():
+    # 确保端口8080可用
+    port_manager = PortManager()
+    port_manager.ensure_port_available(8080)
     async with MAS(oxy_space=oxy_space) as mas:
         querys = [
             "京东的211时效是什么？",

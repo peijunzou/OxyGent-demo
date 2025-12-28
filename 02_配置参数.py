@@ -1,6 +1,8 @@
 import os
 from oxygent import MAS, oxy
 
+from point_util import PortManager
+
 oxy_space = [
     oxy.HttpLLM(
         name="default_llm",
@@ -17,6 +19,9 @@ oxy_space = [
 ]
 
 async def main():
+    # 确保端口8080可用
+    port_manager = PortManager()
+    port_manager.ensure_port_available(8080)
     async with MAS(oxy_space=oxy_space) as mas:
         await mas.start_web_service(first_query="你好")
 

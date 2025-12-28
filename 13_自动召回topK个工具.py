@@ -2,6 +2,7 @@ import os
 from oxygent import MAS, oxy, Config
 from pydantic import Field
 
+from point_util import PortManager
 
 Config.load_from_json("./config.json", env="dev")   # 指定使用 dev 环境：配置Vearch向量库和Embedding模型
 
@@ -52,6 +53,9 @@ oxy_space = [
 ]
 
 async def main():
+    # 确保端口8080可用
+    port_manager = PortManager()
+    port_manager.ensure_port_available(8080)
     async with MAS(oxy_space=oxy_space) as mas:
         await mas.start_web_service(first_query="现在几点")
 

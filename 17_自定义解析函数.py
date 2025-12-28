@@ -3,6 +3,7 @@ from oxygent import MAS, oxy, Config, OxyRequest
 from oxygent.schemas import LLMResponse, LLMState
 from pydantic import Field
 
+from point_util import PortManager
 
 Config.set_agent_llm_model("default_llm")
 
@@ -149,6 +150,9 @@ oxy_space = [
 ]
 
 async def main():
+    # 确保端口8080可用
+    port_manager = PortManager()
+    port_manager.ensure_port_available(8080)
     async with MAS(oxy_space=oxy_space) as mas:
         await mas.start_web_service(first_query="帮我记个备忘录，下午3点在618会议室开会")
 

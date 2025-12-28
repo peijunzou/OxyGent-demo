@@ -1,5 +1,6 @@
 import os
 from oxygent import MAS, oxy
+from point_util import PortManager
 from pydantic import Field
 
 
@@ -35,6 +36,10 @@ oxy_space = [
 ]
 
 async def main():
+    # 确保端口8080可用
+    port_manager = PortManager()
+    port_manager.ensure_port_available(8080)
+    
     async with MAS(oxy_space=oxy_space) as mas:
         await mas.start_web_service(first_query="京东的211时效是什么？")
 
