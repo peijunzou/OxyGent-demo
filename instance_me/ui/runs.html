@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>执行记录</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body data-page="runs">
+    <main>
+      <div class="page-shell">
+        <header class="topbar reveal" data-delay="50">
+          <div class="brand">
+            <div class="brand-mark">IMe</div>
+            <div>
+              InstanceMe 智能体控制台
+              <div class="badge coral">执行记录</div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="skills.html">技能库</a>
+            <a href="todos.html">代办任务</a>
+            <a href="runs.html" aria-current="page">执行记录</a>
+            <a href="agent.html">Agent 监控</a>
+          </nav>
+        </header>
+
+        <section class="hero reveal" data-delay="120">
+          <h1>清晰掌握每一次执行。</h1>
+          <p>
+            追踪执行过程、输出摘要与异常告警，聚焦关键结果。
+            日志会按时间与状态汇总，便于回溯与排障。
+          </p>
+          <div class="input-row">
+            <input class="input" type="text" placeholder="按技能/任务/ID 筛选" />
+            <select class="select">
+              <option>全部状态</option>
+              <option>成功</option>
+              <option>需关注</option>
+              <option>失败</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="grid cols-3 reveal" data-delay="180">
+          <div class="stat">
+            <div class="label">今日执行</div>
+            <div class="value" data-stat="runs-today">0</div>
+            <div class="badge leaf">总数</div>
+          </div>
+          <div class="stat">
+            <div class="label">成功率</div>
+            <div class="value" data-stat="runs-success-rate">0%</div>
+            <div class="badge">最近执行</div>
+          </div>
+          <div class="stat">
+            <div class="label">失败数</div>
+            <div class="value" data-stat="runs-failed">0</div>
+            <div class="badge coral">失败</div>
+          </div>
+        </section>
+
+        <section class="grid cols-2">
+          <div class="panel reveal" data-delay="220">
+            <h2>执行流水</h2>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>执行 ID</th>
+                  <th>技能</th>
+                  <th>开始时间</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody data-role="runs-table"></tbody>
+            </table>
+          </div>
+
+          <div class="panel reveal" data-delay="260">
+            <h2>执行摘要</h2>
+            <div class="card" data-role="runs-summary">
+              <h3>最近执行概览</h3>
+              <div class="card-footer">
+                <button class="button outline">打开日志</button>
+              </div>
+            </div>
+            <div class="card">
+              <h3>执行健康度</h3>
+              <div class="bar-chart">
+                <div>
+                  成功率
+                  <div class="bar"><span style="width: 84%;"></span></div>
+                </div>
+                <div>
+                  工具耗时
+                  <div class="bar"><span style="width: 62%;"></span></div>
+                </div>
+                <div>
+                  通知送达
+                  <div class="bar"><span style="width: 92%;"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

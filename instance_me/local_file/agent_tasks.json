@@ -1,0 +1,29 @@
+[
+  {
+    "id": "weekly_xingyun_todo_create",
+    "type": "todo_create",
+    "schedule": {
+      "kind": "weekly",
+      "day_of_week": "thu",
+      "time": "14:00"
+    },
+    "enabled": true,
+    "todo": {
+      "title": "行云卡片检查",
+      "action": {
+        "type": "xingyun_tag_check",
+        "test_mode": false,
+        "repo_path": "/Users/zoupeijun/Documents/coding/jdi_business_target_monitor"
+      }
+    }
+  },
+  {
+    "id": "daily_todo_scan",
+    "type": "todo_scan",
+    "schedule": {
+      "kind": "daily",
+      "time": "19:56"
+    },
+    "enabled": true
+  }
+]

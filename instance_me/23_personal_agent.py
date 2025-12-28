@@ -4,7 +4,7 @@ import logging
 import os
 import subprocess
 import time
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
@@ -16,6 +16,8 @@ TASKS_PATH = ROOT_DIR / "local_file" / "agent_tasks.json"
 TODOS_PATH = ROOT_DIR / "local_file" / "todos.json"
 # 记录每个任务的最后执行时间，避免一天内重复执行。
 STATE_PATH = ROOT_DIR / "cache_dir" / "personal_agent_state.json"
+# 心跳文件用于监控 Agent 是否在运行。
+HEARTBEAT_PATH = ROOT_DIR / "cache_dir" / "agent_heartbeat.json"
 # 运行结果写入日志，便于人工查看。
 LOG_PATH = ROOT_DIR / "local_file" / "agent_log.txt"
 
@@ -87,31 +89,32 @@ def last_run_date(last_run: Optional[str]) -> Optional[datetime.date]:
         return None
 
 
-def should_run_task(task: Dict[str, Any], now: datetime, state: Dict[str, str]) -> bool:
+def evaluate_task(task: Dict[str, Any], now: datetime, state: Dict[str, str]):
     schedule = task.get("schedule", {})
     kind = schedule.get("kind")
     run_time = parse_time(schedule.get("time"))
     if not kind or run_time is None:
-        return False
+        return False, "missing schedule", run_time
 
     task_id = task.get("id")
     last_run = last_run_date(state.get(task_id))
     if last_run == now.date():
-        return False
+        return False, "already ran today", run_time
 
     if kind == "daily":
-        return now.time() >= run_time
+        return now.time() >= run_time, "not due yet", run_time
 
     if kind == "weekly":
         day_of_week = str(schedule.get("day_of_week", "")).lower()
         target_day = WEEKDAY_MAP.get(day_of_week)
         if target_day is None:
             logging.error("Invalid day_of_week for task %s: %s", task_id, day_of_week)
-            return False
-        return now.weekday() == target_day and now.time() >= run_time
+            return False, "invalid schedule", run_time
+        should_run = now.weekday() == target_day and now.time() >= run_time
+        return should_run, "not due yet", run_time
 
     logging.error("Unsupported schedule kind for task %s: %s", task_id, kind)
-    return False
+    return False, "unsupported schedule", run_time
 
 
 def append_log(message: str) -> None:
@@ -119,6 +122,11 @@ def append_log(message: str) -> None:
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(f"[{timestamp}] {message}\n")
+
+
+def write_heartbeat(now: datetime) -> None:
+    # 写入心跳时间，供监控页面读取。
+    save_json(HEARTBEAT_PATH, {"timestamp": now.isoformat()})
 
 
 def append_log_block(title: str, content: str) -> None:
@@ -219,10 +227,43 @@ def run_todo_scan(now: datetime) -> str:
     return "Todo scan finished."
 
 
+def create_todo(task: Dict[str, Any], now: datetime) -> str:
+    # 创建代办任务条目，用于后续扫描执行。
+    todo_config = task.get("todo", {})
+    if not isinstance(todo_config, dict):
+        raise RuntimeError("todo_create 任务缺少 todo 配置。")
+
+    title = todo_config.get("title", "todo")
+    action = todo_config.get("action") or {"type": "note", "message": title}
+    due_at = todo_config.get("due_at")
+    due_offset = int(todo_config.get("due_offset_minutes", 0))
+    if not due_at:
+        due_at = (now + timedelta(minutes=due_offset)).strftime("%Y-%m-%d %H:%M")
+
+    todo_id_prefix = todo_config.get("id_prefix") or task.get("id", "todo")
+    todo_id = f"{todo_id_prefix}-{now.strftime('%Y%m%d%H%M%S')}"
+    todo_item = {
+        "id": todo_id,
+        "title": title,
+        "due_at": due_at,
+        "status": "open",
+        "action": action,
+    }
+
+    todos = load_json(TODOS_PATH, [])
+    if not isinstance(todos, list):
+        todos = []
+    todos.append(todo_item)
+    save_json(TODOS_PATH, todos)
+    return f"Todo created: {title} @ {due_at}"
+
+
 def run_task(task: Dict[str, Any], now: datetime) -> str:
     task_type = task.get("type")
     if task_type == "todo_scan":
         return run_todo_scan(now)
+    if task_type == "todo_create":
+        return create_todo(task, now)
     if task_type == "xingyun_tag_check":
         return run_xingyun_tag_check(task)
     raise RuntimeError(f"Unsupported task type: {task_type}")
@@ -236,9 +277,11 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     tz = get_timezone()
     logging.info("Personal agent scheduler started (%s)", tz.key)
+    skip_notices = set()
 
     while True:
         now = datetime.now(tz)
+        write_heartbeat(now)
         tasks = load_json(TASKS_PATH, [])
         if not isinstance(tasks, list):
             logging.error("agent_tasks.json should be a list of tasks.")
@@ -248,12 +291,18 @@ def main() -> None:
 
         for task in tasks:
             if not task.get("enabled", True):
+                task_id = task.get("id", "unknown")
+                notice_key = (task_id, now.date().isoformat(), "disabled")
+                if notice_key not in skip_notices:
+                    append_log(f"任务跳过: {task_id}, 原因: 已禁用")
+                    skip_notices.add(notice_key)
                 continue
             task_id = task.get("id")
             if not task_id:
                 logging.warning("Task missing id: %s", task)
                 continue
-            if should_run_task(task, now, state):
+            should_run, reason, run_time = evaluate_task(task, now, state)
+            if should_run:
                 logging.info("Running task: %s", task_id)
                 try:
                     result = run_task(task, now)
@@ -263,6 +312,14 @@ def main() -> None:
                 except Exception as exc:
                     logging.error("Task %s failed: %s", task_id, exc)
                     append_log(f"任务失败: {task_id}, 错误: {exc}")
+            else:
+                if reason == "already ran today":
+                    notice_key = (task_id, now.date().isoformat(), reason)
+                    if notice_key not in skip_notices:
+                        append_log(
+                            f"任务跳过: {task_id}, 原因: 今日已执行过, 时间: {run_time}"
+                        )
+                        skip_notices.add(notice_key)
 
         if state_changed:
             save_json(STATE_PATH, state)

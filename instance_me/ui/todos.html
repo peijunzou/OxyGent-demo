@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>代办任务</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body data-page="todos">
+    <main>
+      <div class="page-shell">
+        <header class="topbar reveal" data-delay="50">
+          <div class="brand">
+            <div class="brand-mark">IMe</div>
+            <div>
+              InstanceMe 智能体控制台
+              <div class="badge leaf">代办任务</div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="skills.html">技能库</a>
+            <a href="todos.html" aria-current="page">代办任务</a>
+            <a href="runs.html">执行记录</a>
+            <a href="agent.html">Agent 监控</a>
+          </nav>
+        </header>
+
+        <section class="hero reveal" data-delay="120">
+          <h1>聚焦即将执行的代办与排程。</h1>
+          <p>
+            页面仅展示即将执行的代办清单与排程任务，不展示已完成记录。
+            新增代办需通过本地配置文件或 Agent 调度生成。
+          </p>
+          <div class="input-row">
+            <input class="input" type="text" placeholder="按标题或 ID 搜索代办" />
+            <select class="select">
+              <option>全部状态</option>
+              <option>进行中</option>
+              <option>已排程</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="grid cols-3 reveal" data-delay="180">
+          <div class="stat">
+            <div class="label">今日待办</div>
+            <div class="value" data-stat="todos-today">0</div>
+            <div class="badge">今日到期</div>
+          </div>
+          <div class="stat">
+            <div class="label">未来 7 天</div>
+            <div class="value" data-stat="todos-week">0</div>
+            <div class="badge sun">即将执行</div>
+          </div>
+          <div class="stat">
+            <div class="label">排程任务</div>
+            <div class="value" data-stat="todos-scheduled">0</div>
+            <div class="badge leaf">自动生成</div>
+          </div>
+        </section>
+
+        <section class="grid cols-2">
+          <div class="panel reveal" data-delay="220">
+            <h2>待办清单</h2>
+            <div class="timeline" data-role="todo-timeline"></div>
+          </div>
+
+          <div class="panel reveal" data-delay="260">
+            <h2>代办说明</h2>
+            <div class="grid">
+              <div class="card">
+                <h3>数据来源</h3>
+                <p>读取 `instance_me/local_file/todos.json` 的待办内容。</p>
+              </div>
+              <div class="card">
+                <h3>排程来源</h3>
+                <p>自动读取 `agent_tasks.json` 的排程任务并展示下一次执行时间。</p>
+              </div>
+              <div class="card">
+                <h3>新增方式</h3>
+                <p>请通过本地配置文件或 Agent 任务生成代办。</p>
+              </div>
+              <div class="card">
+                <h3>展示规则</h3>
+                <p>仅展示即将执行的代办，已完成任务不在此页显示。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

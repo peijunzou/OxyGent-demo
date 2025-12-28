@@ -4,7 +4,7 @@ from pydantic import Field
 
 from point_util import PortManager
 
-Config.load_from_json("./config.json", env="dev")   # 指定使用 dev 环境：配置Vearch向量库和Embedding模型
+Config.load_from_json("../config.json", env="dev")   # 指定使用 dev 环境：配置Vearch向量库和Embedding模型
 
 
 jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")

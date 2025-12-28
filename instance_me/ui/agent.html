@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent 监控</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body data-page="agent">
+    <main>
+      <div class="page-shell">
+        <header class="topbar reveal" data-delay="50">
+          <div class="brand">
+            <div class="brand-mark">IMe</div>
+            <div>
+              InstanceMe 智能体控制台
+              <div class="badge">Agent 监控</div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="skills.html">技能库</a>
+            <a href="todos.html">代办任务</a>
+            <a href="runs.html">执行记录</a>
+            <a href="agent.html" aria-current="page">Agent 监控</a>
+          </nav>
+        </header>
+
+        <section class="hero reveal" data-delay="120">
+          <h1>你的个人 Agent 实时概况。</h1>
+          <p>
+            关注 Agent 当前状态、调度任务与最近执行记录。
+            页面直接映射调度器状态与日志输出。
+          </p>
+        </section>
+
+        <section class="grid cols-3 reveal" data-delay="180">
+          <div class="stat">
+            <div class="label">运行状态</div>
+            <div class="value" data-stat="agent-status">unknown</div>
+            <div class="badge leaf" data-stat="agent-status-badge">waiting</div>
+          </div>
+          <div class="stat">
+            <div class="label">最近执行</div>
+            <div class="value" data-stat="agent-last-run">-</div>
+            <div class="badge">本地时间</div>
+          </div>
+          <div class="stat">
+            <div class="label">已启用任务</div>
+            <div class="value" data-stat="agent-task-count">0</div>
+            <div class="badge sun">启用中</div>
+          </div>
+        </section>
+
+        <section class="grid cols-2">
+          <div class="panel reveal" data-delay="220">
+            <h2>Agent 信息</h2>
+            <div class="list" data-role="agent-info"></div>
+          </div>
+          <div class="panel reveal" data-delay="260">
+            <h2>任务调度</h2>
+            <div class="list" data-role="agent-tasks"></div>
+          </div>
+        </section>
+
+        <section class="panel reveal" data-delay="300">
+          <h2>最近执行</h2>
+          <div class="list" data-role="agent-runs"></div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

@@ -4,7 +4,7 @@ from pydantic import Field
 
 
 # 部署时配置环境变量 APP_ENV = "prod"
-Config.load_from_json("./config.json")
+Config.load_from_json("../config.json")
 
 
 jd_docs_fh = oxy.FunctionHub(name="jd_docs_tools")

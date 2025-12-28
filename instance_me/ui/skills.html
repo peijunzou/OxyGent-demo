@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>技能库</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body data-page="skills">
+    <main>
+      <div class="page-shell">
+        <header class="topbar reveal" data-delay="50">
+          <div class="brand">
+            <div class="brand-mark">IMe</div>
+            <div>
+              InstanceMe 智能体控制台
+              <div class="badge sun">技能库</div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="skills.html" aria-current="page">技能库</a>
+            <a href="todos.html">代办任务</a>
+            <a href="runs.html">执行记录</a>
+            <a href="agent.html">Agent 监控</a>
+          </nav>
+        </header>
+
+        <section class="hero reveal" data-delay="120">
+          <h1>集中掌握 CodeX 技能能力全貌。</h1>
+          <p>
+            这里展示已登记的技能名称与描述信息，支持检索与查看详情。
+            新增与更新请在 CodeX 侧完成登记后再回到此处查看。
+          </p>
+          <div class="input-row">
+            <input class="input" type="text" placeholder="按技能名称或关键字搜索" />
+            <select class="select">
+              <option>全部来源</option>
+              <option>系统技能</option>
+              <option>自定义技能</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="grid cols-3 reveal" data-delay="180">
+          <div class="stat">
+            <div class="label">技能总数</div>
+            <div class="value" data-stat="skills-total">0</div>
+            <div class="badge leaf">已安装</div>
+          </div>
+          <div class="stat">
+            <div class="label">系统技能</div>
+            <div class="value" data-stat="skills-system">0</div>
+            <div class="badge coral">受保护</div>
+          </div>
+          <div class="stat">
+            <div class="label">自定义技能</div>
+            <div class="value" data-stat="skills-custom">0</div>
+            <div class="badge sun">可维护</div>
+          </div>
+        </section>
+
+        <section class="grid cols-2">
+          <div class="panel reveal" data-delay="220">
+            <h2>技能列表</h2>
+            <div class="card skill-detail" data-role="skill-detail" hidden>
+              <div class="card-footer">
+                <div>
+                  <div class="badge">技能详情</div>
+                  <h3 data-role="skill-detail-title">-</h3>
+                  <div class="chip" data-role="skill-detail-path">-</div>
+                </div>
+                <button class="button outline" data-role="skill-detail-close">收起</button>
+              </div>
+              <pre data-role="skill-detail-content"></pre>
+            </div>
+            <div class="grid" data-role="skills-list"></div>
+          </div>
+
+          <aside class="panel reveal" data-delay="260">
+            <h2>登记信息</h2>
+            <p>
+              技能来源为 CodeX 默认目录，列表内容由 `SKILL.md` 的元信息生成。
+              如需新增或更新技能，请在 CodeX 侧完成登记后再回到此处查看。
+            </p>
+            <div class="grid">
+              <div class="card">
+                <div class="badge">来源目录</div>
+                <h3>~/.codex/skills</h3>
+                <p>系统技能与自定义技能统一存放在此目录。</p>
+              </div>
+              <div class="card">
+                <div class="badge">登记入口</div>
+                <h3>CodeX 技能创建</h3>
+                <p>通过 CodeX 的技能管理流程完成新增与更新。</p>
+              </div>
+              <div class="card">
+                <div class="badge">执行规则</div>
+                <h3>显式触发</h3>
+                <p>生产动作需明确指令触发，避免误执行。</p>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
