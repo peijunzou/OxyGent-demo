@@ -16,15 +16,15 @@ CACHE_DIR = INSTANCE_DIR / "cache_dir"
 CODEX_HOME = Path(os.getenv("CODEX_HOME", Path.home() / ".codex"))
 SKILLS_DIR = CODEX_HOME / "skills"
 
-AGENT_SCRIPT = INSTANCE_DIR / "23_personal_agent.py"
+AGENT_SCRIPT = INSTANCE_DIR / "instance_me.py"
 LOG_PATH = LOCAL_FILE_DIR / "agent_log.txt"
 TASKS_PATH = LOCAL_FILE_DIR / "agent_tasks.json"
 TODOS_PATH = LOCAL_FILE_DIR / "todos.json"
 STATE_PATH = CACHE_DIR / "personal_agent_state.json"
 HEARTBEAT_PATH = CACHE_DIR / "agent_heartbeat.json"
 
-RUN_SUCCESS_RE = re.compile(r"^\[(?P<ts>[^\]]+)\] 任务完成: (?P<task>.+)$")
-RUN_FAIL_RE = re.compile(r"^\[(?P<ts>[^\]]+)\] 任务失败: (?P<task>[^,]+)")
+RUN_SUCCESS_RE = re.compile(r"^\[(?P<ts>[^\]]+)\] 业务任务完成: (?P<task>.+)$")
+RUN_FAIL_RE = re.compile(r"^\[(?P<ts>[^\]]+)\] 业务任务失败: (?P<task>[^,]+)")
 
 
 def read_json(path: Path, default):
@@ -65,6 +65,8 @@ def list_skills() -> dict:
         name = meta.get("name") or skill_file.parent.name
         description = meta.get("description", "")
         scope = "system" if ".system" in skill_file.parts else "custom"
+        if scope != "custom":
+            continue
         items.append(
             {
                 "name": name,
@@ -78,8 +80,8 @@ def list_skills() -> dict:
     items.sort(key=lambda item: item["name"].lower())
     stats = {
         "total": len(items),
-        "system": sum(1 for item in items if item["scope"] == "system"),
-        "custom": sum(1 for item in items if item["scope"] == "custom"),
+        "system": 0,
+        "custom": len(items),
     }
     return {"items": items, "stats": stats}
 
@@ -103,7 +105,7 @@ def load_todos() -> dict:
 
     open_today = 0
     open_week = 0
-    scheduled_count = 0
+    total_count = 0
     timeline = []
 
     for item in todos:
@@ -130,6 +132,8 @@ def load_todos() -> dict:
     for task in tasks:
         if not task.get("enabled", True):
             continue
+        if task.get("type") != "todo_create":
+            continue
         schedule = task.get("schedule", {})
         next_run = next_run_time(schedule)
         if not next_run:
@@ -153,16 +157,15 @@ def load_todos() -> dict:
 
     open_today = 0
     open_week = 0
-    scheduled_count = 0
+    total_count = 0
     for item in timeline:
         if item.get("status") in {"done"}:
             continue
+        total_count += 1
         try:
             due_dt = datetime.fromisoformat(item.get("due_at").replace(" ", "T"))
         except Exception:
             continue
-        if item.get("status") == "scheduled":
-            scheduled_count += 1
         if due_dt.date() == today:
             open_today += 1
         if today <= due_dt.date() <= week_end:
@@ -170,7 +173,7 @@ def load_todos() -> dict:
 
     return {
         "items": timeline[:10],
-        "stats": {"today": open_today, "week": open_week, "scheduled": scheduled_count},
+        "stats": {"today": open_today, "week": open_week, "total": total_count},
     }
 
 
@@ -240,6 +243,8 @@ def schedule_label(schedule: dict) -> str:
         return f"{day_label} {schedule.get('time', '-')}"
     if kind == "daily":
         return f"每天 {schedule.get('time', '-')}"
+    if kind == "interval":
+        return f"每隔 {schedule.get('minutes', '-')} 分钟"
     if kind == "once":
         return "一次性"
     return "未知"
@@ -279,6 +284,13 @@ def next_run_time(schedule: dict) -> str:
             days_ahead = 7
         candidate = candidate + timedelta(days=days_ahead)
         return candidate.isoformat()
+
+    if schedule.get("kind") == "interval":
+        try:
+            minutes = int(schedule.get("minutes", 0))
+        except (TypeError, ValueError):
+            return ""
+        return (datetime.now() + timedelta(minutes=minutes)).isoformat()
 
     return ""
 
@@ -337,9 +349,8 @@ def load_agent() -> dict:
             }
         )
 
-    runs = parse_runs()["items"][:5]
     return {
-        "name": "Personal Agent",
+        "name": "Instance Me Agent",
         "status": status,
         "status_note": status_note,
         "last_run": last_run,
@@ -348,7 +359,6 @@ def load_agent() -> dict:
         "script_path": str(AGENT_SCRIPT),
         "log_path": str(LOG_PATH),
         "tasks": tasks_info,
-        "recent_runs": runs,
     }
 
 
@@ -415,7 +425,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 def run():
     server = ThreadingHTTPServer(("127.0.0.1", 8082), Handler)
-    print("Server running at http://127.0.0.1:8082")
+    print("Manage service running at http://127.0.0.1:8082")
     server.serve_forever()
 
 

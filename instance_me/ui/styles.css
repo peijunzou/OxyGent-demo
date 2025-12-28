@@ -245,7 +245,8 @@ a {
   gap: 12px;
 }
 
-.card-detail {
+.card-detail,
+.skill-detail {
   padding: 12px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(35, 48, 54, 0.08);
@@ -254,12 +255,21 @@ a {
   gap: 8px;
 }
 
-.card-detail pre {
+.card-detail pre,
+.skill-detail pre {
   margin: 0;
   white-space: pre-wrap;
   font-size: 13px;
   line-height: 1.5;
   color: var(--slate);
+}
+
+.skill-detail {
+  margin-bottom: 16px;
+}
+
+.skill-detail[hidden] {
+  display: none;
 }
 
 .skill-detail pre {

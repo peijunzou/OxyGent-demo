@@ -3,10 +3,11 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 
@@ -89,44 +90,11 @@ def last_run_date(last_run: Optional[str]) -> Optional[datetime.date]:
         return None
 
 
-def evaluate_task(task: Dict[str, Any], now: datetime, state: Dict[str, str]):
-    schedule = task.get("schedule", {})
-    kind = schedule.get("kind")
-    run_time = parse_time(schedule.get("time"))
-    if not kind or run_time is None:
-        return False, "missing schedule", run_time
-
-    task_id = task.get("id")
-    last_run = last_run_date(state.get(task_id))
-    if last_run == now.date():
-        return False, "already ran today", run_time
-
-    if kind == "daily":
-        return now.time() >= run_time, "not due yet", run_time
-
-    if kind == "weekly":
-        day_of_week = str(schedule.get("day_of_week", "")).lower()
-        target_day = WEEKDAY_MAP.get(day_of_week)
-        if target_day is None:
-            logging.error("Invalid day_of_week for task %s: %s", task_id, day_of_week)
-            return False, "invalid schedule", run_time
-        should_run = now.weekday() == target_day and now.time() >= run_time
-        return should_run, "not due yet", run_time
-
-    logging.error("Unsupported schedule kind for task %s: %s", task_id, kind)
-    return False, "unsupported schedule", run_time
-
-
 def append_log(message: str) -> None:
     timestamp = datetime.now(get_timezone()).strftime("%Y-%m-%d %H:%M:%S")
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(f"[{timestamp}] {message}\n")
-
-
-def write_heartbeat(now: datetime) -> None:
-    # 写入心跳时间，供监控页面读取。
-    save_json(HEARTBEAT_PATH, {"timestamp": now.isoformat()})
 
 
 def append_log_block(title: str, content: str) -> None:
@@ -203,24 +171,32 @@ def run_todo_scan(now: datetime) -> str:
 
         action = todo.get("action", {})
         action_type = action.get("type", "note")
-        if action_type == "xingyun_tag_check":
-            result = run_xingyun_tag_check(action)
-        elif action_type == "shell":
-            result = run_shell(
-                action.get("command", ""),
-                workdir=action.get("workdir"),
-                args=action.get("args"),
-            )
-        else:
-            # 默认动作：写入日志，确保代办不丢失。
-            message = action.get("message") or todo.get("title", "todo")
-            append_log(f"TODO: {message}")
-            result = "Logged todo action."
+        title = todo.get("title", "todo")
+        try:
+            if action_type == "xingyun_tag_check":
+                result = run_xingyun_tag_check(action)
+            elif action_type == "shell":
+                result = run_shell(
+                    action.get("command", ""),
+                    workdir=action.get("workdir"),
+                    args=action.get("args"),
+                )
+            else:
+                # 默认动作：写入日志，确保代办不丢失。
+                message = action.get("message") or title
+                append_log(f"TODO: {message}")
+                result = "Logged todo action."
 
-        todo["status"] = "done"
-        todo["done_at"] = now.isoformat()
-        todo["result"] = result
-        updated = True
+            todo["status"] = "done"
+            todo["done_at"] = now.isoformat()
+            todo["result"] = result
+            append_log_block(f"业务任务完成: {title}", result)
+            updated = True
+        except Exception as exc:
+            todo["last_error"] = str(exc)
+            todo["last_attempt_at"] = now.isoformat()
+            append_log(f"业务任务失败: {title}, 错误: {exc}")
+            updated = True
 
     if updated:
         save_json(TODOS_PATH, todos)
@@ -269,39 +245,96 @@ def run_task(task: Dict[str, Any], now: datetime) -> str:
     raise RuntimeError(f"Unsupported task type: {task_type}")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Personal agent scheduler")
-    parser.add_argument("--once", action="store_true", help="run one cycle then exit")
-    args = parser.parse_args()
+class TaskScheduler:
+    def __init__(self, tz: ZoneInfo, poll_interval: int):
+        self.tz = tz
+        self.poll_interval = poll_interval
+        self.skip_notices = set()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    tz = get_timezone()
-    logging.info("Personal agent scheduler started (%s)", tz.key)
-    skip_notices = set()
+    def write_heartbeat(self, now: datetime) -> None:
+        # 写入心跳时间，供监控页面读取。
+        save_json(HEARTBEAT_PATH, {"timestamp": now.isoformat()})
 
-    while True:
-        now = datetime.now(tz)
-        write_heartbeat(now)
+    def load_tasks(self) -> List[Dict[str, Any]]:
         tasks = load_json(TASKS_PATH, [])
         if not isinstance(tasks, list):
             logging.error("agent_tasks.json should be a list of tasks.")
-            tasks = []
+            return []
+        return tasks
+
+    def load_state(self) -> Dict[str, str]:
         state = load_json(STATE_PATH, {})
+        return state if isinstance(state, dict) else {}
+
+    def evaluate_task(
+        self, task: Dict[str, Any], now: datetime, state: Dict[str, str]
+    ) -> Tuple[bool, str, Optional[dt_time]]:
+        schedule = task.get("schedule", {})
+        kind = schedule.get("kind")
+        if not kind:
+            return False, "missing schedule", None
+
+        task_id = task.get("id")
+        last_run_at = state.get(task_id)
+
+        if kind == "interval":
+            minutes = schedule.get("minutes")
+            try:
+                minutes = int(minutes)
+            except (TypeError, ValueError):
+                return False, "missing interval", None
+            if last_run_at:
+                try:
+                    last_run_dt = datetime.fromisoformat(last_run_at)
+                    if now - last_run_dt < timedelta(minutes=minutes):
+                        return False, "interval not due yet", None
+                except ValueError:
+                    pass
+            return True, "interval due", None
+
+        run_time = parse_time(schedule.get("time"))
+        if run_time is None:
+            return False, "missing schedule time", run_time
+
+        last_run = last_run_date(last_run_at)
+        if last_run == now.date():
+            return False, "already ran today", run_time
+
+        if kind == "daily":
+            return now.time() >= run_time, "not due yet", run_time
+
+        if kind == "weekly":
+            day_of_week = str(schedule.get("day_of_week", "")).lower()
+            target_day = WEEKDAY_MAP.get(day_of_week)
+            if target_day is None:
+                logging.error("Invalid day_of_week for task %s: %s", task_id, day_of_week)
+                return False, "invalid schedule", run_time
+            should_run = now.weekday() == target_day and now.time() >= run_time
+            return should_run, "not due yet", run_time
+
+        logging.error("Unsupported schedule kind for task %s: %s", task_id, kind)
+        return False, "unsupported schedule", run_time
+
+    def run_cycle(self) -> None:
+        now = datetime.now(self.tz)
+        self.write_heartbeat(now)
+        tasks = self.load_tasks()
+        state = self.load_state()
         state_changed = False
 
         for task in tasks:
             if not task.get("enabled", True):
                 task_id = task.get("id", "unknown")
                 notice_key = (task_id, now.date().isoformat(), "disabled")
-                if notice_key not in skip_notices:
+                if notice_key not in self.skip_notices:
                     append_log(f"任务跳过: {task_id}, 原因: 已禁用")
-                    skip_notices.add(notice_key)
+                    self.skip_notices.add(notice_key)
                 continue
             task_id = task.get("id")
             if not task_id:
                 logging.warning("Task missing id: %s", task)
                 continue
-            should_run, reason, run_time = evaluate_task(task, now, state)
+            should_run, reason, run_time = self.evaluate_task(task, now, state)
             if should_run:
                 logging.info("Running task: %s", task_id)
                 try:
@@ -315,18 +348,41 @@ def main() -> None:
             else:
                 if reason == "already ran today":
                     notice_key = (task_id, now.date().isoformat(), reason)
-                    if notice_key not in skip_notices:
+                    if notice_key not in self.skip_notices:
                         append_log(
                             f"任务跳过: {task_id}, 原因: 今日已执行过, 时间: {run_time}"
                         )
-                        skip_notices.add(notice_key)
+                        self.skip_notices.add(notice_key)
 
         if state_changed:
             save_json(STATE_PATH, state)
 
-        if args.once:
-            break
-        time.sleep(POLL_INTERVAL_SECONDS)
+    def run(self, once: bool) -> None:
+        while True:
+            self.run_cycle()
+            if once:
+                break
+            time.sleep(self.poll_interval)
+
+
+def start_scheduler_in_thread(tz: Optional[ZoneInfo] = None, poll_interval: int = 60) -> TaskScheduler:
+    # 通过后台线程运行调度器，避免阻塞主进程。
+    scheduler = TaskScheduler(tz=tz or get_timezone(), poll_interval=poll_interval)
+    thread = threading.Thread(target=scheduler.run, args=(False,), daemon=True)
+    thread.start()
+    return scheduler
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Instance Me Scheduler Agent")
+    parser.add_argument("--once", action="store_true", help="run one cycle then exit")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    tz = get_timezone()
+    logging.info("Scheduler agent started (%s)", tz.key)
+    scheduler = TaskScheduler(tz=tz, poll_interval=POLL_INTERVAL_SECONDS)
+    scheduler.run(args.once)
 
 
 if __name__ == "__main__":

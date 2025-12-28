@@ -38,14 +38,6 @@
             这里展示已登记的技能名称与描述信息，支持检索与查看详情。
             新增与更新请在 CodeX 侧完成登记后再回到此处查看。
           </p>
-          <div class="input-row">
-            <input class="input" type="text" placeholder="按技能名称或关键字搜索" />
-            <select class="select">
-              <option>全部来源</option>
-              <option>系统技能</option>
-              <option>自定义技能</option>
-            </select>
-          </div>
         </section>
 
         <section class="grid cols-3 reveal" data-delay="180">
@@ -55,31 +47,30 @@
             <div class="badge leaf">已安装</div>
           </div>
           <div class="stat">
-            <div class="label">系统技能</div>
-            <div class="value" data-stat="skills-system">0</div>
-            <div class="badge coral">受保护</div>
-          </div>
-          <div class="stat">
             <div class="label">自定义技能</div>
             <div class="value" data-stat="skills-custom">0</div>
-            <div class="badge sun">可维护</div>
+            <div class="badge coral">已登记</div>
+          </div>
+          <div class="stat">
+            <div class="label">目录来源</div>
+            <div class="value">CodeX</div>
+            <div class="badge sun">~/.codex/skills</div>
           </div>
         </section>
 
         <section class="grid cols-2">
           <div class="panel reveal" data-delay="220">
             <h2>技能列表</h2>
-            <div class="card skill-detail" data-role="skill-detail" hidden>
+            <section class="skill-detail" data-role="skill-detail" hidden>
               <div class="card-footer">
                 <div>
                   <div class="badge">技能详情</div>
                   <h3 data-role="skill-detail-title">-</h3>
                   <div class="chip" data-role="skill-detail-path">-</div>
                 </div>
-                <button class="button outline" data-role="skill-detail-close">收起</button>
               </div>
               <pre data-role="skill-detail-content"></pre>
-            </div>
+            </section>
             <div class="grid" data-role="skills-list"></div>
           </div>
 

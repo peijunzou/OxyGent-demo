@@ -38,14 +38,6 @@
             页面仅展示即将执行的代办清单与排程任务，不展示已完成记录。
             新增代办需通过本地配置文件或 Agent 调度生成。
           </p>
-          <div class="input-row">
-            <input class="input" type="text" placeholder="按标题或 ID 搜索代办" />
-            <select class="select">
-              <option>全部状态</option>
-              <option>进行中</option>
-              <option>已排程</option>
-            </select>
-          </div>
         </section>
 
         <section class="grid cols-3 reveal" data-delay="180">
@@ -60,9 +52,9 @@
             <div class="badge sun">即将执行</div>
           </div>
           <div class="stat">
-            <div class="label">排程任务</div>
-            <div class="value" data-stat="todos-scheduled">0</div>
-            <div class="badge leaf">自动生成</div>
+            <div class="label">全部待办</div>
+            <div class="value" data-stat="todos-total">0</div>
+            <div class="badge leaf">进行中</div>
           </div>
         </section>
 
@@ -80,16 +72,16 @@
                 <p>读取 `instance_me/local_file/todos.json` 的待办内容。</p>
               </div>
               <div class="card">
-                <h3>排程来源</h3>
-                <p>自动读取 `agent_tasks.json` 的排程任务并展示下一次执行时间。</p>
-              </div>
-              <div class="card">
                 <h3>新增方式</h3>
-                <p>请通过本地配置文件或 Agent 任务生成代办。</p>
+                <p>请通过本地配置文件或 Agent 运行时生成代办。</p>
               </div>
               <div class="card">
                 <h3>展示规则</h3>
                 <p>仅展示即将执行的代办，已完成任务不在此页显示。</p>
+              </div>
+              <div class="card">
+                <h3>展示字段</h3>
+                <p>标题、执行时间、动作类型、执行目标（如仓库）。</p>
               </div>
             </div>
           </div>

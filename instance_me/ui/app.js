@@ -76,7 +76,6 @@ const renderSkills = async () => {
   if (!data) return;
 
   setText('[data-stat="skills-total"]', data.stats.total);
-  setText('[data-stat="skills-system"]', data.stats.system);
   setText('[data-stat="skills-custom"]', data.stats.custom);
 
   const list = document.querySelector('[data-role="skills-list"]');
@@ -87,20 +86,22 @@ const renderSkills = async () => {
   const detailTitle = document.querySelector('[data-role="skill-detail-title"]');
   const detailPath = document.querySelector('[data-role="skill-detail-path"]');
   const detailContent = document.querySelector('[data-role="skill-detail-content"]');
-  const detailClose = document.querySelector('[data-role="skill-detail-close"]');
   let activeSkill = null;
+  let activeButton = null;
 
   const closeDetail = () => {
     if (!detail) return;
     detail.hidden = true;
+    detailContent.textContent = "";
     activeSkill = null;
-    list.querySelectorAll("button[data-path]").forEach((btn) => {
-      btn.textContent = "查看";
-    });
+    if (activeButton) {
+      activeButton.textContent = "查看";
+      activeButton = null;
+    }
   };
 
-  if (detailClose) {
-    detailClose.addEventListener("click", closeDetail);
+  if (detail) {
+    detail.hidden = true;
   }
 
   data.items.forEach((skill) => {
@@ -136,11 +137,13 @@ const renderSkills = async () => {
       } else {
         detailContent.textContent = "无法加载 SKILL.md，请确认本地服务运行正常。";
       }
+      if (activeButton && activeButton !== button) {
+        activeButton.textContent = "查看";
+      }
+      list.insertBefore(detail, card.nextSibling);
       detail.hidden = false;
       activeSkill = skill.name;
-      list.querySelectorAll("button[data-path]").forEach((btn) => {
-        btn.textContent = "查看";
-      });
+      activeButton = button;
       button.textContent = "收起";
     });
   });
@@ -152,7 +155,7 @@ const renderTodos = async () => {
 
   setText('[data-stat="todos-today"]', data.stats.today);
   setText('[data-stat="todos-week"]', data.stats.week);
-  setText('[data-stat="todos-scheduled"]', data.stats.scheduled);
+  setText('[data-stat="todos-total"]', data.stats.total);
 
   const timeline = document.querySelector('[data-role="todo-timeline"]');
   if (!timeline) return;
@@ -167,14 +170,12 @@ const renderTodos = async () => {
         : todo.status === "open"
           ? "sun"
           : "";
-    const sourceLabel = todo.source === "schedule" ? "排程任务" : "代办任务";
     item.innerHTML = `
       <div class="timeline-time">${formatDate(todo.due_at)}</div>
       <div>
         <div class="badge ${badgeClass}">${formatLabel(todo.status)}</div>
         <h3>${todo.title}</h3>
         <p>${formatLabel(todo.action_type)} · ${todo.action_summary || "-"}</p>
-        <div class="chip">${sourceLabel}</div>
       </div>
     `;
     timeline.appendChild(item);
@@ -225,7 +226,7 @@ const renderAgent = async () => {
   if (!data) {
     const info = document.querySelector('[data-role="agent-info"]');
     if (info) {
-      info.innerHTML = '<div class="list-item">未获取到 Agent 数据，请先启动 instance_me/server.py。</div>';
+      info.innerHTML = '<div class="list-item">未获取到 Agent 数据，请先启动 instance_me/manage_service.py。</div>';
     }
     return;
   }
@@ -275,18 +276,6 @@ const renderAgent = async () => {
   const runs = document.querySelector('[data-role="agent-runs"]');
   if (runs) {
     runs.innerHTML = "";
-    data.recent_runs.forEach((run) => {
-      const row = document.createElement("div");
-      row.className = "list-item";
-      const dotClass = run.status === "success" ? "ok" : run.status === "failed" ? "fail" : "warn";
-      row.innerHTML = `
-        <div class="list-title">
-          <span class="status-dot ${dotClass}"></span>${run.task}
-        </div>
-        <div>${formatDate(run.started_at)} · ${formatLabel(run.status)}</div>
-      `;
-      runs.appendChild(row);
-    });
   }
 };
 
