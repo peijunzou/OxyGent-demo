@@ -155,6 +155,23 @@ def run_xingyun_tag_check(config: Dict[str, Any]) -> str:
     return run_shell(args[0], workdir=str(repo), args=args[1:])
 
 
+def run_changan_workorder_check(config: Dict[str, Any]) -> str:
+    # 调用长安工单检查脚本。
+    repo_path = config.get("repo_path") or os.getenv("CHANGAN_REPO_PATH")
+    if not repo_path:
+        raise RuntimeError("Missing CHANGAN_REPO_PATH for Changan work order check.")
+
+    repo = Path(repo_path)
+    if not repo.exists():
+        raise RuntimeError(f"Changan repo not found: {repo_path}")
+
+    args = ["run", "./cmd/changan-workorder-check"]
+    if config.get("test_mode"):
+        args.append("test")
+
+    return run_shell("go", workdir=str(repo), args=args)
+
+
 def run_todo_scan(now: datetime) -> str:
     # 扫描到期代办并执行，完成后写回 todos.json。
     todos = load_json(TODOS_PATH, [])
@@ -175,6 +192,8 @@ def run_todo_scan(now: datetime) -> str:
         try:
             if action_type == "xingyun_tag_check":
                 result = run_xingyun_tag_check(action)
+            elif action_type == "changan_workorder_check":
+                result = run_changan_workorder_check(action)
             elif action_type == "shell":
                 result = run_shell(
                     action.get("command", ""),
@@ -242,6 +261,8 @@ def run_task(task: Dict[str, Any], now: datetime) -> str:
         return create_todo(task, now)
     if task_type == "xingyun_tag_check":
         return run_xingyun_tag_check(task)
+    if task_type == "changan_workorder_check":
+        return run_changan_workorder_check(task)
     raise RuntimeError(f"Unsupported task type: {task_type}")
 
 

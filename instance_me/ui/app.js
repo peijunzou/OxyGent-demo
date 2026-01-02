@@ -48,6 +48,7 @@ const LABEL_MAP = {
   todo_scan: "代办扫描",
   todo_create: "创建代办",
   xingyun_tag_check: "行云卡片检查",
+  changan_workorder_check: "长安工单检查",
   note: "备注",
   shell: "脚本执行",
   active: "运行中",

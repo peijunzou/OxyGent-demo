@@ -35,6 +35,7 @@
 本地服务：`instance_me/manage_service.py`（端口 `8082`）
 
 OxyGent 服务：`instance_me/instance_me.py`（端口 `8080`，提供对话入口）
+  - 可通过环境变量 `INSTANCE_ME_PORT` 或 `OXYGENT_PORT` 覆盖端口。
 
 API 列表：
 - `GET /api/skills`
@@ -62,10 +63,17 @@ API 列表：
   - 启动时加载 `config.json`，以读取 `.env` 中的 LLM 配置。
 - 对话 Agent：`instance_me/char_agent.py`（仅支持新增/修改/关闭业务代办）
   - 启动时会读取仓库根目录 `.env`，补充 LLM 环境变量。
-  - 支持自然语言时间（如“下周一 14:00”），未指定时间默认 `09:00`。
+  - 支持自然语言时间，由模型抽取为结构化参数（一次性或重复排程），未指定时间默认 `09:00`。
+  - 提供 `query_todos` 工具查询代办数量与列表。
+  - 动作类型包含：`note`、`xingyun_tag_check`、`changan_workorder_check`、`shell`。
+  - 针对代办相关请求启用反射校验，要求必须通过工具调用返回结果。
+  - 工具调用需输出 JSON：`{"tool_name":"...","arguments":{...}}`。
+  - 兼容简写调用（如 `query_todos()`），会转换为标准工具调用。
+- 路由策略：
+  - `instance_me_master` 优先在代办相关请求时调用 `todo_chat_agent`，非代办问题可直接回复或引导补充信息。
 - 工具 Agent：`instance_me/char_agent.py`（独立工具能力，如当前时间）
   - 对话 Agent 涉及时间时优先通过工具 Agent 获取当前时间，避免日期偏差。
-  - 若时间描述包含“每周/每天/每隔”，对话 Agent 会自动创建重复排程（写入 `agent_tasks.json`）。
+  - 模型根据意图调用 `add_todo`（写入 `todos.json`）或 `add_schedule`（写入 `agent_tasks.json`）。
 - 调度 Agent：`instance_me/scheduler_agent.py`（`TaskScheduler` 负责心跳、任务评估与执行编排）
 - 业务执行逻辑（如 `todo_scan`、`todo_create`）由调度 Agent 内部函数执行。
 
