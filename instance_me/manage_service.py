@@ -120,8 +120,10 @@ def load_todos() -> dict:
             action_summary = f"{action_summary} 仓库: {repo_path}".strip()
         timeline.append(
             {
+                "id": item.get("id"),
                 "title": item.get("title", "todo"),
                 "due_at": item.get("due_at"),
+                "created_at": item.get("created_at"),
                 "status": status,
                 "action_type": action.get("type", "note"),
                 "action_summary": action_summary,
@@ -144,8 +146,10 @@ def load_todos() -> dict:
         action_summary = schedule_label(schedule)
         timeline.append(
             {
+                "id": task.get("id"),
                 "title": title,
                 "due_at": next_run,
+                "created_at": task.get("created_at"),
                 "status": "scheduled",
                 "action_type": action_type,
                 "action_summary": action_summary,

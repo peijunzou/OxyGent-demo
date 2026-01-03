@@ -176,6 +176,7 @@ const renderTodos = async () => {
       <div>
         <div class="badge ${badgeClass}">${formatLabel(todo.status)}</div>
         <h3>${todo.title}</h3>
+        <div class="timeline-meta">ID: ${todo.id || "-"} · 创建: ${formatDate(todo.created_at)}</div>
         <p>${formatLabel(todo.action_type)} · ${todo.action_summary || "-"}</p>
       </div>
     `;
