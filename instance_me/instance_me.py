@@ -14,7 +14,7 @@ from char_agent import build_oxy_space
 from demo.point_util import PortManager
 from scheduler_agent import POLL_INTERVAL_SECONDS, start_scheduler_in_thread
 
-DEFAULT_PORT = 8080
+DEFAULT_PORT = 8088
 
 
 async def main() -> None:

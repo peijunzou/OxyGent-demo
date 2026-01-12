@@ -20,8 +20,13 @@ def apply_user_style(prompt: str) -> str:
 
 
 TODO_PROMPT = """你是 Instance Me 的代办助手，只处理新增/修改/关闭/查询代办任务。
-除非需要向用户追问必要信息，否则必须使用工具调用，并严格输出 JSON（只允许 tool_name 与 arguments）：
-{"tool_name":"工具名","arguments":{...}}
+输出规范：
+1) 需要调用工具时，必须输出工具调用 JSON（只允许 tool_name 与 arguments）：
+   {"tool_name":"工具名","arguments":{...}}
+2) 不需要调用工具时，必须输出结构化状态 JSON（只允许 status/message/missing/data）：
+   {"status":"final","message":"...","data":{...}}
+   {"status":"need_user","message":"请补充执行时间","missing":["due_at"]}
+   {"status":"error","message":"参数格式错误"}
 严禁输出 parameters / agent / action 等其他字段。
 判断是否为重复任务：重复任务用 add_schedule，一次性任务用 add_todo。
 查询代办或数量时使用 query_todos 工具。
@@ -33,11 +38,17 @@ TODO_PROMPT = """你是 Instance Me 的代办助手，只处理新增/修改/关
   - weekly: day_of_week 为 mon..sun，time 为 HH:MM
   - daily: time 为 HH:MM
   - interval: interval_minutes 为整数分钟
-如用户给相对时间或“下周/明天”等，请先通过 tool_agent 获取当前时间并换算为明确日期时间。
-若缺少必要信息先追问；缺少时间时必须追问，不要默认时间。
+如用户给相对时间或“下周/明天”等，不要直接询问用户当前日期；请输出 need_user，并在 message 中说明需要当前日期基准。
+若缺少必要信息先输出 need_user；缺少时间时必须追问，不要默认时间。
 示例：
 {"tool_name":"query_todos","arguments":{"detail":false}}
-{"tool_name":"add_todo","arguments":{"title":"行云卡片检查","due_at":"2026-01-08 14:00","action_type":"xingyun_tag_check","repo_path":"/path"}}"""
+{"tool_name":"add_todo","arguments":{"title":"行云卡片检查","due_at":"2026-01-08 14:00","action_type":"xingyun_tag_check","repo_path":"/path"}}
+{"status":"final","message":"已新增代办：行云卡片检查，执行时间 2026-01-08 14:00"}"""
+
+TOOL_AGENT_PROMPT = """你是时间工具助手，只负责获取当前时间。
+无论用户输入什么，都必须输出以下 JSON 工具调用：
+{"tool_name":"get_current_time","arguments":{}}
+严禁输出其他字段或自然语言。"""
 
 TODO_LLM_PROMPT = """你是代办意图与要素识别器，只输出 JSON。
 根据用户请求识别动作并抽取必要要素，JSON 必须包含以下字段：

@@ -14,7 +14,7 @@ from todo.agent_helpers import (
     parse_llm_response,
     parse_master_llm_response,
 )
-from todo.prompts import MASTER_PROMPT, TODO_LLM_PROMPT, TODO_PROMPT, apply_user_style
+from todo.prompts import MASTER_PROMPT, TODO_LLM_PROMPT, TODO_PROMPT, TOOL_AGENT_PROMPT, apply_user_style
 from todo.router import master_execute
 from todo.store import ENV_PATH, load_env_file
 
@@ -32,7 +32,8 @@ def build_oxy_space():
         time_fh,
         oxy.ReActAgent(
             name="tool_agent",
-            desc="提供时间等基础工具能力的辅助 Agent",
+            desc="提供当前时间的辅助 Agent",
+            prompt=TOOL_AGENT_PROMPT,
             llm_model="default_llm",
             tools=["time_tools"],
         ),
@@ -49,7 +50,7 @@ def build_oxy_space():
             prompt=apply_user_style(TODO_PROMPT),
             llm_model="default_llm",
             tools=["todo_tools"],
-            sub_agents=["todo_llm_agent", "tool_agent"],
+            sub_agents=["todo_llm_agent"],
             func_parse_llm_response=parse_llm_response,
             func_reflexion=enforce_tool_reflexion,
         ),

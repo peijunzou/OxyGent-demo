@@ -8,28 +8,12 @@ from oxygent.utils.common_utils import extract_first_json
 
 from .constants import TOOL_NAMES
 from .guards import guard_tool_call, map_tool_to_action
-from .memory import (
-    clear_pending_tool_response,
-    get_memory_key,
-    has_pending_tool_response,
-    set_pending_tool_response,
-)
 
 
 def enforce_tool_reflexion(response: str, oxy_request) -> Optional[str]:
-    memory_key = get_memory_key(oxy_request)
-    if has_pending_tool_response(memory_key):
-        return None
     intent_action = oxy_request.get_arguments("intent_action") if oxy_request else None
     if intent_action not in {"add", "update", "close", "query"}:
         return None
-    response_text = (response or "").strip()
-    if response_text:
-        needs_time = any(token in response_text for token in ["时间", "日期", "几点", "哪天", "何时", "什么时候"])
-        needs_schedule = any(token in response_text for token in ["每周几", "周几", "频率", "间隔", "哪天"])
-        is_question = "?" in response_text or "？" in response_text or "请" in response_text
-        if is_question and (needs_time or needs_schedule):
-            return None
     query = oxy_request.get_query() if oxy_request else ""
     keywords = [
         "代办",
@@ -50,7 +34,12 @@ def enforce_tool_reflexion(response: str, oxy_request) -> Optional[str]:
         "每隔",
     ]
     if any(token in query for token in keywords):
-        return "请严格输出 JSON 工具调用格式：{\"tool_name\":\"...\",\"arguments\":{...}}"
+        return (
+            "请严格输出 JSON：需要调用工具时使用 "
+            "{\"tool_name\":\"...\",\"arguments\":{...}}；"
+            "不需要工具时使用 "
+            "{\"status\":\"final|need_user|error\",\"message\":\"...\"}"
+        )
     return None
 
 
@@ -91,34 +80,56 @@ def normalize_tool_call(tool_call_dict: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def parse_llm_response(ori_response: str, oxy_request=None) -> LLMResponse:
-    memory_key = get_memory_key(oxy_request)
     try:
         if "</think>" in ori_response:
             ori_response = ori_response.split("</think>")[-1].strip()
         tool_call_dict = json.loads(extract_first_json(ori_response))
+        if "status" in tool_call_dict:
+            status = str(tool_call_dict.get("status") or "").strip().lower()
+            if status not in {"final", "need_user", "need_call", "error"}:
+                return LLMResponse(
+                    state=LLMState.ERROR_PARSE,
+                    output="状态输出不合法，请使用 status=final/need_user/need_call/error。",
+                    ori_response=ori_response,
+                )
+            return LLMResponse(
+                state=LLMState.ANSWER,
+                output=tool_call_dict,
+                ori_response=ori_response,
+            )
         if "tool_name" in tool_call_dict:
             tool_call_dict = normalize_tool_call(tool_call_dict)
+            tool_name = str(tool_call_dict.get("tool_name") or "").strip()
+            if tool_name in {"tool_agent", "get_current_time"}:
+                return LLMResponse(
+                    state=LLMState.ANSWER,
+                    output={
+                        "status": "need_user",
+                        "message": "需要当前日期作为基准来解析相对时间。",
+                        "missing": ["due_at"],
+                    },
+                    ori_response=ori_response,
+                )
             if oxy_request:
                 intent_action = oxy_request.get_arguments("intent_action")
-                tool_action = map_tool_to_action(tool_call_dict.get("tool_name", ""))
+                tool_action = map_tool_to_action(tool_name)
                 if intent_action and tool_action and intent_action != tool_action:
-                    clear_pending_tool_response(memory_key)
                     return LLMResponse(
                         state=LLMState.ANSWER,
-                        output=f"我理解你的意图是{intent_action}，但系统将执行{tool_action}，请确认你要做哪一个？",
+                        output={
+                            "status": "need_user",
+                            "message": f"我理解你的意图是{intent_action}，但系统将执行{tool_action}，请确认你要做哪一个？",
+                        },
                         ori_response=ori_response,
                     )
                 guarded_call, error = guard_tool_call(tool_call_dict, oxy_request)
                 if error:
-                    clear_pending_tool_response(memory_key)
                     return LLMResponse(
                         state=LLMState.ANSWER,
-                        output=error,
+                        output={"status": "need_user", "message": error},
                         ori_response=ori_response,
                     )
                 tool_call_dict = guarded_call or tool_call_dict
-            if tool_call_dict.get("tool_name"):
-                set_pending_tool_response(memory_key)
             return LLMResponse(
                 state=LLMState.TOOL_CALL,
                 output=tool_call_dict,
@@ -126,23 +137,15 @@ def parse_llm_response(ori_response: str, oxy_request=None) -> LLMResponse:
             )
         return LLMResponse(
             state=LLMState.ERROR_PARSE,
-            output="请严格输出 JSON 工具调用格式。",
+            output="请严格输出 JSON：工具调用或结构化状态。",
             ori_response=ori_response,
         )
     except json.JSONDecodeError:
         shorthand = parse_shorthand_tool_call(ori_response)
         if shorthand:
-            set_pending_tool_response(memory_key)
             return LLMResponse(
                 state=LLMState.TOOL_CALL,
                 output=shorthand,
-                ori_response=ori_response,
-            )
-        if has_pending_tool_response(memory_key):
-            clear_pending_tool_response(memory_key)
-            return LLMResponse(
-                state=LLMState.ANSWER,
-                output=ori_response,
                 ori_response=ori_response,
             )
         reflection_msg = enforce_tool_reflexion(ori_response, oxy_request)
@@ -154,7 +157,7 @@ def parse_llm_response(ori_response: str, oxy_request=None) -> LLMResponse:
             )
         return LLMResponse(
             state=LLMState.ANSWER,
-            output=ori_response,
+            output={"status": "final", "message": ori_response},
             ori_response=ori_response,
         )
     except Exception as exc:

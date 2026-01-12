@@ -1,10 +1,12 @@
 from typing import Dict, Optional, Tuple
 
-from oxygent.schemas import OxyRequest
-
+import logging
 import os
 
+from oxygent.schemas import OxyRequest
+
 from .constants import ALLOWED_ACTIONS, ID_PATTERN, TOOL_NAMES, VALID_SCHEDULE_KINDS, VALID_WEEKDAYS
+from config_util import get_repo_path_from_config
 from .memory import (
     clear_pending_action,
     get_candidates,
@@ -14,6 +16,30 @@ from .memory import (
     set_pending_action,
 )
 from .store import ensure_tasks, ensure_todos
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _resolve_repo_path_source(
+    action_type: str, repo_path: Optional[str], env_name: str
+) -> Optional[str]:
+    env_value = os.getenv(env_name)
+    config_value = get_repo_path_from_config(action_type)
+    if repo_path:
+        _LOGGER.info("%s repo_path provided: %s", action_type, repo_path)
+        return repo_path
+    elif env_value:
+        _LOGGER.info("%s repo_path resolved from %s: %s", action_type, env_name, env_value)
+        return env_value
+    elif config_value:
+        _LOGGER.info("%s repo_path resolved from config.json: %s", action_type, config_value)
+        return config_value
+    _LOGGER.warning(
+        "%s repo_path missing; %s not set and config.json has no default.",
+        action_type,
+        env_name,
+    )
+    return None
 
 
 def extract_ids(text: Optional[str]) -> list[str]:
@@ -40,10 +66,12 @@ def validate_action_requirements(
     command: Optional[str],
 ) -> Optional[str]:
     if action_type == "xingyun_tag_check":
-        if not (repo_path or os.getenv("XINGYUN_REPO_PATH")):
+        resolved = _resolve_repo_path_source(action_type, repo_path, "XINGYUN_REPO_PATH")
+        if not resolved:
             return "缺少仓库路径，请提供 repo_path。"
     if action_type == "changan_workorder_check":
-        if not (repo_path or os.getenv("CHANGAN_REPO_PATH")):
+        resolved = _resolve_repo_path_source(action_type, repo_path, "CHANGAN_REPO_PATH")
+        if not resolved:
             return "缺少仓库路径，请提供 repo_path。"
     if action_type == "shell":
         if not command:

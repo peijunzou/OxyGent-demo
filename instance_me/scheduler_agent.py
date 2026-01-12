@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
+from config_util import get_repo_path_from_config
 
 ROOT_DIR = Path(__file__).resolve().parent
 # 任务清单与代办存放在 local_file，方便直接编辑。
@@ -133,20 +134,30 @@ def run_shell(command: str, workdir: Optional[str] = None, args: Optional[List[s
 
 def run_xingyun_tag_check(config: Dict[str, Any]) -> str:
     # 调用 code X 中的行云卡片标签检查脚本。
-    repo_path = config.get("repo_path") or os.getenv("XINGYUN_REPO_PATH")
+    repo_path = config.get("repo_path")
+    if not repo_path:
+        env_value = os.getenv("XINGYUN_REPO_PATH")
+        repo_path = env_value or get_repo_path_from_config("xingyun_tag_check")
+        if repo_path and not env_value:
+            logging.info("Xingyun repo path resolved from config.json: %s", repo_path)
     if not repo_path:
         raise RuntimeError("Missing XINGYUN_REPO_PATH for Xingyun tag check.")
 
     repo = Path(repo_path)
+    if not repo.exists():
+        raise RuntimeError(f"Xingyun repo not found: {repo_path}")
     script_path = repo / "scripts" / "run-req-card-tag.sh"
     if not script_path.exists():
         raise RuntimeError(f"Missing script: {script_path}")
 
-    required_dir = repo / "src/main/java/com/jd/gyl/webmagic/datasource/xingyun/requirementmanage"
-    if not (required_dir / "login.properties").exists():
-        raise RuntimeError("Missing login.properties under requirementmanage.")
-    if not (required_dir / "public_key.pem").exists():
-        raise RuntimeError("Missing public_key.pem under requirementmanage.")
+    if not os.getenv("XINGYUN_ROBOT_TOKEN"):
+        raise RuntimeError("Missing XINGYUN_ROBOT_TOKEN for Xingyun tag check.")
+    jd_dir = Path.home() / ".jd"
+    if not list(jd_dir.glob("*.pwd")):
+        raise RuntimeError(
+            "Missing JD login credentials under ~/.jd/*.pwd. "
+            "Please login first or check references/login-setup.md."
+        )
 
     args = [str(script_path)]
     if config.get("test_mode"):
@@ -157,7 +168,12 @@ def run_xingyun_tag_check(config: Dict[str, Any]) -> str:
 
 def run_changan_workorder_check(config: Dict[str, Any]) -> str:
     # 调用长安工单检查脚本。
-    repo_path = config.get("repo_path") or os.getenv("CHANGAN_REPO_PATH")
+    repo_path = config.get("repo_path")
+    if not repo_path:
+        env_value = os.getenv("CHANGAN_REPO_PATH")
+        repo_path = env_value or get_repo_path_from_config("changan_workorder_check")
+        if repo_path and not env_value:
+            logging.info("Changan repo path resolved from config.json: %s", repo_path)
     if not repo_path:
         raise RuntimeError("Missing CHANGAN_REPO_PATH for Changan work order check.")
 
